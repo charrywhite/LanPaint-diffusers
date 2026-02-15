@@ -31,7 +31,7 @@ python run_lanpaint.py --model z-image \
     --lp-n-steps 5 \
     --lp-friction 15.0 \
     --lp-lambda 16 \
-    --seed 42 \
+    --seed 0 \
     --guidance-scale 1.0 \
     --num-steps 9 \
     --prompt "Latina female with thick wavy hair, white shirt, harbor boats and pastel houses behind. Breezy seaside light, warm tones, cinematic close-up." \
