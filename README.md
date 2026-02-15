@@ -84,7 +84,7 @@ See `run_lanpaint.sh` for more example commands (Flux Klein, SD3, Z-Image inpain
 
 ## Results Showcase
 
-Below are visual examples for `flux-klein` and `z-image` in table format.
+Below are visual examples for `flux-klein` and `z-image`. 
 
 ### Flux2 Klein (Example 24)
 
