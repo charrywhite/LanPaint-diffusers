@@ -1,183 +1,127 @@
-# LanPaint Release Package
+# LanPaint-Diffusers
 
-This folder is a standalone package for multi-model LanPaint inpainting/outpainting.
+Training-free diffusion inpainting and outpainting with [LanPaint](https://github.com/scraed/LanPaint), built on [Hugging Face Diffusers](https://github.com/huggingface/diffusers).
 
-It includes:
+## Features
 
-- `lanpaint_pipeline/`: model-agnostic orchestration + model adapters
-- `run_lanpaint.py`: unified CLI entrypoint
-- `run_lanpaint.sh`: runnable command examples
+- **Diffusers-native**: Uses the `diffusers` library only. No ComfyUI or other graph-based UI dependency.
+- **Multi-model**: One CLI and one pipeline API for all supported backends. Currently supported:
+  - **Flux2 Klein** (`flux-klein`)
+  - **Z-Image Turbo** (`z-image`)
+  - **Stable Diffusion 3** (`sd3`)
+- **Extensible**: More LanPaint-supported models will be added over time; new backends are integrated via the adapter registry.
 
-## Folder Structure
+---
 
-```text
-lanpaint_release/
-├── README.md
-├── run_lanpaint.py
-├── run_lanpaint.sh
-└── lanpaint_pipeline/
-    ├── __init__.py
-    ├── model_adapter.py
-    ├── pipeline.py
-    ├── registry.py
-    ├── utils.py
-    └── adapters/
-        ├── __init__.py
-        ├── flux_klein.py
-        ├── sd3.py
-        └── z_image.py
-```
+## Usage
 
-## What This Package Does
+### Installation
 
-The package wraps multiple diffusion pipelines behind one consistent LanPaint workflow:
-
-1. Load and preprocess image/mask
-2. Encode prompt and image latents via adapter
-3. Run LanPaint Langevin dynamics in latent space
-4. Run scheduler denoising loop
-5. Decode latents to image
-6. Blend generated and original image with a smooth mask
-
-The architecture separates generic logic from model-specific logic:
-
-- `LanPaintInpaintPipeline` (`pipeline.py`): shared orchestration
-- `ModelAdapter` (`model_adapter.py`): abstract interface
-- Adapter implementations (`adapters/*.py`): per-model details
-
-## Supported Models
-
-Model keys are defined in `lanpaint_pipeline/registry.py`:
-
-- `flux-klein`
-- `sd3`
-- `z-image`
-
-You can list models at runtime:
+- Python 3.10+ (3.12 tested), NVIDIA GPU and CUDA-compatible PyTorch recommended.
+- **LanPaint** and **diffusers** are installed from GitHub (see `requirements.txt`); they are not published on PyPI at the versions we use.
 
 ```bash
-python run_lanpaint.py --list-models
-```
-
-## Requirements
-
-This release includes `requirements.txt` with tested versions. The **LanPaint** library (used for `from LanPaint.lanpaint import LanPaint`) is installed from GitHub: [scraed/LanPaint](https://github.com/scraed/LanPaint) — it is not published on PyPI.
-
-Minimum assumptions:
-
-- Python 3.10+ (3.12 tested)
-- NVIDIA GPU + CUDA-compatible PyTorch for practical speed
-- Internet access for downloading model weights (unless using local checkpoints)
-
-## Minimal Setup
-
-### 1) Create and activate a virtual environment
-
-```bash
-cd lanpaint_release
+cd LanPaint-diffusers   # or your clone path
 python -m venv .venv
-source .venv/bin/activate
-python -m pip install --upgrade pip
-```
-
-### 2) Install dependencies
-
-```bash
+source .venv/bin/activate   # Windows: .venv\Scripts\activate
+pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-If your machine needs a different PyTorch build (for example a specific CUDA version),
-install PyTorch first from the official index, then run:
+If you need a different PyTorch/CUDA build, install PyTorch first, then:
 
 ```bash
 pip install -r requirements.txt --no-deps
 ```
 
-### 3) Verify installation
+Verify:
 
 ```bash
 python -c "import torch, diffusers, LanPaint; print(torch.__version__, diffusers.__version__)"
 python run_lanpaint.py --list-models
 ```
 
-You should see registered models such as `flux-klein`, `sd3`, and `z-image`.
+### Commands
 
-## Quick Start
-
-### 1) Inpaint with an explicit mask
+**List registered models**
 
 ```bash
-python run_lanpaint.py \
-  --model z-image \
+python run_lanpaint.py --list-models
+```
+
+**Inpaint** (image + mask)
+
+```bash
+python run_lanpaint.py --model z-image \
   --prompt "Change the shirt color to blue" \
   --image path/to/image.png \
   --mask path/to/mask.png
 ```
 
-### 2) Outpaint with padding spec
-
-Use `--outpaint-pad` instead of `--mask`.
-Format is side+pixels, for example:
-
-- `l200r200` (expand left and right by 200 px)
-- `l200r200t200b200` (expand all four sides by 200 px)
+**Outpaint** (padding spec: `l`eft, `r`ight, `t`op, `b`ottom + pixels)
 
 ```bash
-python run_lanpaint.py \
-  --model z-image \
+python run_lanpaint.py --model z-image \
   --prompt "Extend the scene naturally" \
   --image path/to/image.png \
   --outpaint-pad l200r200t200b200
 ```
 
-Outpaint mode rules:
+- `--outpaint-pad` and `--mask` are mutually exclusive.
+- Do not pass `--height` / `--width` when using `--outpaint-pad`.
 
-- `--outpaint-pad` and `--mask` are mutually exclusive
-- when `--outpaint-pad` is used, do not pass `--height/--width`
+**Useful options**
 
-## Helpful CLI Options
+- `--guidance-scale`, `--num-steps`, `--seed`
+- `--output <path>`: output image path
+- `--model-id <hf-or-local-path>`: override checkpoint
+- `--save-preprocess-dir <dir>`: save preprocess/debug images (canvas, mask, pre-blend decoded image)
+- `--local-files-only`: skip Hub download
 
-- `--guidance-scale`: CFG scale override
-- `--num-steps`: scheduler step count override
-- `--seed`: deterministic sampling seed
-- `--save-preprocess-dir <dir>`: save debug images used before denoising
-- `--output <path>`: custom output path
-- `--model-id <hf-or-local-path>`: override model checkpoint
-- `--local-files-only`: avoid Hub download
+See `run_lanpaint.sh` for more example commands (Flux Klein, SD3, Z-Image inpaint/outpaint).
 
-## Debug Artifacts
+---
 
-If you pass `--save-preprocess-dir`, the pipeline saves:
+## Library Structure
 
-- `preprocess_orig_canvas.png`
-- `preprocess_image_tensor_vis.png`
-- `preprocess_mask_keep.png`
-- `preprocess_mask_edit.png`
-- `pre_blend_decoded_image.png`
+```
+LanPaint-diffusers/
+├── README.md
+├── requirements.txt
+├── run_lanpaint.py      # Unified CLI
+├── run_lanpaint.sh      # Example commands
+└── lanpaint_pipeline/
+    ├── __init__.py
+    ├── model_adapter.py   # Abstract adapter interface
+    ├── pipeline.py        # LanPaintInpaintPipeline (orchestrator)
+    ├── registry.py        # Model registry (flux-klein, sd3, z-image)
+    ├── utils.py           # Blend, time helpers, image loading
+    └── adapters/
+        ├── __init__.py
+        ├── flux_klein.py  # Flux2KleinAdapter
+        ├── sd3.py         # SD3Adapter
+        └── z_image.py     # ZImageAdapter
+```
 
-These files are useful for diagnosing mask logic, outpaint boundaries, and blend behavior.
+- **LanPaintInpaintPipeline** (`pipeline.py`): model-agnostic flow (preprocess → encode → LanPaint Langevin + scheduler loop → decode → blend).
+- **ModelAdapter** (`model_adapter.py`): abstract interface (encode_prompt, encode_and_prepare, mask_to_latent_space, prepare_timesteps, predict_x0, decode_latents). Each backend implements one adapter in `adapters/`.
+- **Registry** (`registry.py`): maps model keys to pipeline class, adapter class, and default config; adding a model is done by registering one entry.
 
-## Example Script
+---
 
-Use `run_lanpaint.sh` as a template for:
+## Citation
 
-- model listing
-- Flux2 Klein examples
-- SD3 example
-- Z-Image inpaint example
-- Z-Image outpaint example
+If you use this repository or LanPaint in your work, please cite:
 
-## Publishing to GitHub
-
-To publish only this package:
-
-1. Copy `lanpaint_release/` to your new repository root
-2. Commit files
-3. Push to GitHub
-
-Recommended additions for a public repo:
-
-- `LICENSE`
-- `requirements.txt` or `environment.yml`
-- a short `examples/` folder with sample input/output
-
+```bibtex
+@article{
+zheng2025lanpaint,
+title={LanPaint: Training-Free Diffusion Inpainting with Asymptotically Exact and Fast Conditional Sampling},
+author={Candi Zheng and Yuan Lan and Yang Wang},
+journal={Transactions on Machine Learning Research},
+issn={2835-8856},
+year={2025},
+url={https://openreview.net/forum?id=JPC8JyOUSW},
+note={}
+}
+```
