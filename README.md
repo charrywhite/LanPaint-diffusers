@@ -43,42 +43,26 @@ python run_lanpaint.py --list-models
 
 ### Commands
 
-**List registered models**
+**We recommend using the example commands in `run_lanpaint.sh`.** Uncomment the block you need (or run it as-is if one is already uncommented), then:
 
 ```bash
-python run_lanpaint.py --list-models
+./run_lanpaint.sh
+# or: bash run_lanpaint.sh
 ```
 
-**Inpaint** (image + mask)
+The script includes ready-to-run examples for:
 
-```bash
-python run_lanpaint.py --model z-image \
-  --prompt "Change the shirt color to blue" \
-  --image path/to/image.png \
-  --mask path/to/mask.png
-```
+- **List models**: `python run_lanpaint.py --list-models`
+- **Flux2 Klein** (inpaint, URL or local image + mask)
+- **SD3** (inpaint with example prompt and URLs)
+- **Z-Image Turbo** (inpaint and outpaint, with `--outpaint-pad`)
 
-**Outpaint** (padding spec: `l`eft, `r`ight, `t`op, `b`ottom + pixels)
+**Quick reference** (same CLI, custom args):
 
-```bash
-python run_lanpaint.py --model z-image \
-  --prompt "Extend the scene naturally" \
-  --image path/to/image.png \
-  --outpaint-pad l200r200t200b200
-```
+- Inpaint: `--model <name> --prompt "..." --image <path-or-URL> --mask <path-or-URL>`
+- Outpaint: `--model <name> --prompt "..." --image <path> --outpaint-pad l200r200t200b200` (no `--mask`; do not use `--height`/`--width` with `--outpaint-pad`)
 
-- `--outpaint-pad` and `--mask` are mutually exclusive.
-- Do not pass `--height` / `--width` when using `--outpaint-pad`.
-
-**Useful options**
-
-- `--guidance-scale`, `--num-steps`, `--seed`
-- `--output <path>`: output image path
-- `--model-id <hf-or-local-path>`: override checkpoint
-- `--save-preprocess-dir <dir>`: save preprocess/debug images (canvas, mask, pre-blend decoded image)
-- `--local-files-only`: skip Hub download
-
-See `run_lanpaint.sh` for more example commands (Flux Klein, SD3, Z-Image inpaint/outpaint).
+**Useful options**: `--guidance-scale`, `--num-steps`, `--seed`, `--output <path>`, `--model-id <hf-or-local-path>`, `--save-preprocess-dir <dir>`, `--local-files-only`
 
 ---
 
