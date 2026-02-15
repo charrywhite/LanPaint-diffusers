@@ -61,7 +61,7 @@ python run_lanpaint.py --list-models
 
 ## Requirements
 
-This release includes `requirements.txt` with tested versions.
+This release includes `requirements.txt` with tested versions. The **LanPaint** library (used for `from LanPaint.lanpaint import LanPaint`) is installed from GitHub: [scraed/LanPaint](https://github.com/scraed/LanPaint) — it is not published on PyPI.
 
 Minimum assumptions:
 
