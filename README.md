@@ -18,7 +18,7 @@ Training-free diffusion inpainting and outpainting with [LanPaint](https://githu
 ### Installation
 
 - Python 3.10+ (3.12 tested), NVIDIA GPU and CUDA-compatible PyTorch recommended.
-- **LanPaint** and **diffusers** are installed from GitHub (see `requirements.txt`); they are not published on PyPI at the versions we use.
+- **LanPaint** and **diffusers** are installed from GitHub (see `requirements.txt`); 
 
 ```bash
 cd LanPaint-diffusers   # or your clone path
