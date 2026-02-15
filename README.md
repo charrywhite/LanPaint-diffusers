@@ -82,6 +82,24 @@ See `run_lanpaint.sh` for more example commands (Flux Klein, SD3, Z-Image inpain
 
 ---
 
+## Results Showcase
+
+Below are visual examples for `flux-klein` and `z-image` in table format.
+
+### Flux2 Klein (Example 24)
+
+| Original | Masked | Diffusers Version | ComfyUI Version |
+|:--------:|:------:|:-----------------:|:---------------:|
+| ![Original Flux2 Klein](https://raw.githubusercontent.com/scraed/LanPaint/master/examples/Example_24/Original_No_Mask.png) | ![Masked Flux2 Klein](https://raw.githubusercontent.com/scraed/LanPaint/master/examples/Example_24/Masked_Load_Me_in_Loader.png) | ![Inpainted Flux2 Klein Diffusers](results/flux-klein/lanpaint_output.png) | ![Inpainted Flux2 Klein ComfyUI](https://raw.githubusercontent.com/scraed/LanPaint/master/examples/Example_24/InPainted_Drag_Me_to_ComfyUI.png) |
+
+### Z-Image Turbo (Example 21)
+
+| Original | Masked | Diffusers Version | ComfyUI Version |
+|:--------:|:------:|:-----------------:|:---------------:|
+| ![Original Z-Image](https://raw.githubusercontent.com/scraed/LanPaint/master/examples/Example_21/Original_No_Mask.png) | ![Masked Z-Image](https://raw.githubusercontent.com/scraed/LanPaint/master/examples/Example_21/Masked_Load_Me_in_Loader.png) | ![Inpainted Z-Image Diffusers](results/z-image/lanpaint_output.png) | ![Inpainted Z-Image ComfyUI](https://raw.githubusercontent.com/scraed/LanPaint/master/examples/Example_21/InPainted_Drag_Me_to_ComfyUI.png) |
+
+---
+
 ## Library Structure
 
 ```
