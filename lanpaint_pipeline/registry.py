@@ -149,3 +149,13 @@ register_model("z-image", ModelSpec(
     default_dtype=torch.bfloat16,
     default_params={"guidance_scale": 5.0, "num_inference_steps": 20},
 ))
+
+register_model("qwen", ModelSpec(
+    name="Qwen Image Edit",
+    pipeline_cls_path="diffusers.QwenImageEditPlusPipeline",
+    adapter_cls_path="lanpaint_pipeline.adapters.qwen.QwenAdapter",
+    default_model_id="Qwen/Qwen-Image-Edit-2509",
+    default_dtype=torch.bfloat16,
+    default_params={"guidance_scale": 4.0, "num_inference_steps": 20},
+    requires_ref_at_inference=True,
+))
