@@ -347,7 +347,7 @@ class LanPaintInpaintPipeline:
                 .unsqueeze(0)
                 .to(device)
             )
-            mask_keep = (mask_tensor > 0.01).float()
+            mask_keep = (mask_tensor > 0.5).float()
 
         img_tensor = self.adapter.image_processor.preprocess(
             orig_img, height=ih, width=iw, resize_mode="crop"

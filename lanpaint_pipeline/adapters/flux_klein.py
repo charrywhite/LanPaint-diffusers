@@ -75,10 +75,13 @@ class FluxKleinAdapter(ModelAdapter):
         device: torch.device,
     ) -> ImageLatents:
         # Encode reference image → packed latent + ref IDs
+        # Use a CPU generator for VAE latent_dist.sample() to match diffusers
+        # convention and ensure consistent results across devices (CPU/MPS/CUDA).
+        cpu_generator = torch.Generator("cpu").manual_seed(generator.initial_seed())
         image_latents, ref_image_ids = self.pipe.prepare_image_latents(
             images=[img_tensor],
             batch_size=1,
-            generator=generator,
+            generator=cpu_generator,
             device=device,
             dtype=self.pipe.vae.dtype,
         )
