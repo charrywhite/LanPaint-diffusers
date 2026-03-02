@@ -51,6 +51,49 @@ class FluxKleinAdapter(ModelAdapter):
 
     # ---- ModelAdapter implementation ----
 
+    @staticmethod
+    def _to_3d_tensor(cond):
+        """Normalize conditioning to 3D tensor [B, seq_len, hidden].
+
+        Handles list of 2D tensors (ZImage format) by stacking.
+        """
+        if isinstance(cond, list):
+            return torch.stack(cond, dim=0)
+        return cond
+
+    def set_conditioning(self, positive_conditioning, negative_conditioning=None):
+        """
+        Inject pre-encoded Klein conditioning tensor [B, seq_len, 3*hidden].
+
+        Also accepts list-of-tensors (ZImage format) by stacking to 3D.
+        Reconstructs text_ids via _prepare_text_ids (cartesian coords: t, h, w, l).
+        """
+        positive_conditioning = self._to_3d_tensor(positive_conditioning)
+
+        self._prompt_embeds = positive_conditioning
+        self._text_ids = Flux2KleinPipeline._prepare_text_ids(positive_conditioning).to(
+            positive_conditioning.device
+        )
+
+        if negative_conditioning is not None:
+            negative_conditioning = self._to_3d_tensor(negative_conditioning)
+            self._neg_prompt_embeds = negative_conditioning
+            self._neg_text_ids = Flux2KleinPipeline._prepare_text_ids(negative_conditioning).to(
+                negative_conditioning.device
+            )
+        else:
+            self._neg_prompt_embeds = torch.zeros_like(positive_conditioning)
+            self._neg_text_ids = Flux2KleinPipeline._prepare_text_ids(
+                torch.zeros_like(positive_conditioning)
+            ).to(positive_conditioning.device)
+
+        self._prompt_bundle = PromptBundle(data={
+            "prompt_embeds": self._prompt_embeds,
+            "text_ids": self._text_ids,
+            "neg_prompt_embeds": self._neg_prompt_embeds,
+            "neg_text_ids": self._neg_text_ids,
+        })
+
     def encode_prompt(self, prompt: str, negative_prompt: str, device: torch.device) -> PromptBundle:
         self._prompt_embeds, self._text_ids = self.pipe.encode_prompt(
             prompt=prompt, device=device,

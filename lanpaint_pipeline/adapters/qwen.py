@@ -71,8 +71,32 @@ class QwenAdapter(ModelAdapter):
         self._latent_width: int = 0
         self._pixel_height: int = 0
         self._pixel_width: int = 0
+        self._conditioning_preloaded: bool = False
 
     # ---- ModelAdapter implementation ----
+
+    def set_conditioning(self, positive_conditioning, negative_conditioning=None):
+        """
+        Inject pre-encoded Qwen conditioning dict.
+
+        positive_conditioning: dict with prompt_embeds, prompt_embeds_mask, image.
+        negative_conditioning: optional dict with prompt_embeds, prompt_embeds_mask.
+        """
+        self._prompt_embeds = positive_conditioning["prompt_embeds"]
+        self._prompt_embeds_mask = positive_conditioning["prompt_embeds_mask"]
+
+        if negative_conditioning is not None:
+            self._neg_prompt_embeds = negative_conditioning["prompt_embeds"]
+            self._neg_prompt_embeds_mask = negative_conditioning["prompt_embeds_mask"]
+        else:
+            self._neg_prompt_embeds = torch.zeros_like(self._prompt_embeds)
+            self._neg_prompt_embeds_mask = torch.zeros_like(self._prompt_embeds_mask)
+
+        self._conditioning_preloaded = True
+        self._prompt_bundle = PromptBundle(data={
+            "prompt_embeds": self._prompt_embeds,
+            "prompt_embeds_mask": self._prompt_embeds_mask,
+        })
 
     def encode_prompt(self, prompt: str, negative_prompt: str, device: torch.device) -> PromptBundle:
         """
@@ -118,33 +142,35 @@ class QwenAdapter(ModelAdapter):
         self._latent_height = 2 * (int(height) // (vae_sf * 2))
         self._latent_width = 2 * (int(width) // (vae_sf * 2))
 
-        # --- 1. Prepare condition image for VL encoder ---
-        # img_tensor is (B, C, H, W) in [-1, 1]; reconstruct PIL for VL encoder
-        img_np = img_tensor[0].detach().float().cpu()
-        img_np = ((img_np / 2.0) + 0.5).clamp(0.0, 1.0)
-        img_np = img_np.permute(1, 2, 0).numpy()
-        condition_pil = Image.fromarray((img_np * 255).astype(np.uint8))
+        # --- 1 & 2. Encode prompts (skip if conditioning was pre-loaded) ---
+        if not self._conditioning_preloaded:
+            # Prepare condition image for VL encoder
+            # img_tensor is (B, C, H, W) in [-1, 1]; reconstruct PIL for VL encoder
+            img_np = img_tensor[0].detach().float().cpu()
+            img_np = ((img_np / 2.0) + 0.5).clamp(0.0, 1.0)
+            img_np = img_np.permute(1, 2, 0).numpy()
+            condition_pil = Image.fromarray((img_np * 255).astype(np.uint8))
 
-        # Resize for VL encoder (384x384 target area)
-        img_w, img_h = condition_pil.size
-        cond_w, cond_h = calculate_dimensions(CONDITION_IMAGE_SIZE, img_w / img_h)
-        condition_image = pipe.image_processor.resize(condition_pil, cond_h, cond_w)
+            # Resize for VL encoder (384x384 target area)
+            img_w, img_h = condition_pil.size
+            cond_w, cond_h = calculate_dimensions(CONDITION_IMAGE_SIZE, img_w / img_h)
+            condition_image = pipe.image_processor.resize(condition_pil, cond_h, cond_w)
 
-        # --- 2. Encode prompts with VL encoder ---
-        self._prompt_embeds, self._prompt_embeds_mask = pipe.encode_prompt(
-            prompt=self._prompt_str,
-            image=[condition_image],
-            device=device,
-        )
+            # Encode prompts with VL encoder
+            self._prompt_embeds, self._prompt_embeds_mask = pipe.encode_prompt(
+                prompt=self._prompt_str,
+                image=[condition_image],
+                device=device,
+            )
 
-        # Always encode the negative prompt (even empty string) so CFG is active.
-        # LanPaint needs both cond and uncond predictions for proper inpainting.
-        neg_str = self._neg_prompt_str if self._neg_prompt_str is not None else ""
-        self._neg_prompt_embeds, self._neg_prompt_embeds_mask = pipe.encode_prompt(
-            prompt=neg_str,
-            image=[condition_image],
-            device=device,
-        )
+            # Always encode the negative prompt (even empty string) so CFG is active.
+            # LanPaint needs both cond and uncond predictions for proper inpainting.
+            neg_str = self._neg_prompt_str if self._neg_prompt_str is not None else ""
+            self._neg_prompt_embeds, self._neg_prompt_embeds_mask = pipe.encode_prompt(
+                prompt=neg_str,
+                image=[condition_image],
+                device=device,
+            )
 
         # --- 3. VAE-encode at target resolution ---
         # img_tensor is already preprocessed at (height, width); add time dim for Qwen VAE

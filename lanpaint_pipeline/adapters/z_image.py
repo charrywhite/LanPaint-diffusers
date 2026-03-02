@@ -52,6 +52,34 @@ class ZImageAdapter(ModelAdapter):
         self._latent_height: int = 0
         self._latent_width: int = 0
 
+    def set_conditioning(self, positive_conditioning, negative_conditioning=None):
+        """
+        Inject pre-encoded ZImage conditioning tensor [B, seq_len, hidden].
+
+        Converts to list of 2D tensors (same format as pipe.encode_prompt output).
+        """
+        if isinstance(positive_conditioning, torch.Tensor) and positive_conditioning.ndim == 3:
+            self._prompt_embeds = [positive_conditioning[i] for i in range(positive_conditioning.shape[0])]
+        elif isinstance(positive_conditioning, list):
+            self._prompt_embeds = positive_conditioning
+        else:
+            self._prompt_embeds = [positive_conditioning]
+
+        if negative_conditioning is not None:
+            if isinstance(negative_conditioning, torch.Tensor) and negative_conditioning.ndim == 3:
+                self._neg_prompt_embeds = [negative_conditioning[i] for i in range(negative_conditioning.shape[0])]
+            elif isinstance(negative_conditioning, list):
+                self._neg_prompt_embeds = negative_conditioning
+            else:
+                self._neg_prompt_embeds = [negative_conditioning]
+        else:
+            self._neg_prompt_embeds = [torch.zeros_like(t) for t in self._prompt_embeds]
+
+        self._prompt_bundle = PromptBundle(data={
+            "prompt_embeds": self._prompt_embeds,
+            "neg_prompt_embeds": self._neg_prompt_embeds,
+        })
+
     def encode_prompt(self, prompt: str, negative_prompt: str, device: torch.device) -> PromptBundle:
         self._prompt_embeds, self._neg_prompt_embeds = self.pipe.encode_prompt(
             prompt=prompt,

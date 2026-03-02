@@ -125,6 +125,19 @@ class ModelAdapter(ABC):
         """
         return (1.0 - sigma) * latent_image + sigma * noise
 
+    # ---- optional methods (overridden per model) ----
+
+    def set_conditioning(self, positive_conditioning, negative_conditioning=None):
+        """
+        Inject pre-encoded conditioning (from an upstream encode node).
+
+        Subclasses store the tensors/dicts in the same internal fields that
+        encode_prompt() would populate, so predict_x0() works unchanged.
+        """
+        raise NotImplementedError(
+            f"{type(self).__name__} does not implement set_conditioning()"
+        )
+
     # ---- abstract methods (must be implemented per model) ----
 
     @abstractmethod

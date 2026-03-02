@@ -90,7 +90,7 @@ class LanPaintInpaintPipeline:
     def __call__(
         self,
         *,
-        prompt: str,
+        prompt: Optional[str] = None,
         image: Union[str, Image.Image],
         mask_image: Optional[Union[str, Image.Image]] = None,
         outpaint_padding: Optional[str] = None,
@@ -121,8 +121,11 @@ class LanPaintInpaintPipeline:
         if generator is None:
             generator = torch.Generator(device=device).manual_seed(seed)
 
-        with torch.no_grad():
-            _ = self.adapter.encode_prompt(prompt, negative_prompt, device)
+        # If prompt is provided, encode it now.
+        # If None, conditioning was already set via adapter.set_conditioning().
+        if prompt is not None:
+            with torch.no_grad():
+                _ = self.adapter.encode_prompt(prompt, negative_prompt, device)
 
         with torch.no_grad():
             image_latents = self.adapter.encode_and_prepare(
