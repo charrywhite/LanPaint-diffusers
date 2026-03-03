@@ -80,7 +80,7 @@ The pipeline supports both standalone mask images and RGBA masks:
 
 ## Results Showcase
 
-Below are visual examples for `flux-klein` and `z-image`. 
+Below are visual examples for `flux-klein`, `z-image`, and `qwen`.
 
 ### Flux2 Klein (Example 24)
 
@@ -93,6 +93,12 @@ Below are visual examples for `flux-klein` and `z-image`.
 | Original | Masked | Diffusers Version | ComfyUI Version |
 |:--------:|:------:|:-----------------:|:---------------:|
 | ![Original Z-Image](https://raw.githubusercontent.com/scraed/LanPaint/master/examples/Example_21/Original_No_Mask.png) | ![Masked Z-Image](https://raw.githubusercontent.com/scraed/LanPaint/master/examples/Example_21/Masked_Load_Me_in_Loader.png) | ![Inpainted Z-Image Diffusers](results/z-image/lanpaint_output.png) | ![Inpainted Z-Image ComfyUI](https://raw.githubusercontent.com/scraed/LanPaint/master/examples/Example_21/InPainted_Drag_Me_to_ComfyUI.png) |
+
+### Qwen Image Edit (Example 14)
+
+| Original | Masked | Diffusers Version | ComfyUI Version |
+|:--------:|:------:|:-----------------:|:---------------:|
+| ![Original Qwen](https://raw.githubusercontent.com/scraed/LanPaint/master/examples/Example_14/Original_No_Mask.png) | ![Masked Qwen](https://raw.githubusercontent.com/scraed/LanPaint/master/examples/Example_14/Masked_Load_Me_in_Loader.png) | ![Inpainted Qwen Diffusers](results/qwen/lanpaint_output.png) | ![Inpainted Qwen ComfyUI](https://raw.githubusercontent.com/scraed/LanPaint/master/examples/Example_14/QwenEdit_2509_InPainted_Drag_Me_to_ComfyUI.png) |
 
 ---
 
