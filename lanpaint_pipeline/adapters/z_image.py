@@ -181,11 +181,18 @@ class ZImageAdapter(ModelAdapter):
             (batch_size,), model_t, device=x.device, dtype=model_dtype,
         )
 
-        # CFG: repeat along batch dim — match the actual number of dims
-        repeat_dims = [2] + [1] * (orig_ndim - 1)  # e.g. [2,1,1,1] for 4D, [2,1,1,1,1] for 5D
-        latent_in = x.to(model_dtype).repeat(*repeat_dims)
-        timestep_in = timestep_tensor.repeat(2)
-        prompt_list = self._prompt_embeds + self._neg_prompt_embeds
+        do_cfg = guidance_scale > 1.0
+
+        if do_cfg:
+            # CFG: repeat along batch dim — match the actual number of dims
+            repeat_dims = [2] + [1] * (orig_ndim - 1)
+            latent_in = x.to(model_dtype).repeat(*repeat_dims)
+            timestep_in = timestep_tensor.repeat(2)
+            prompt_list = self._prompt_embeds + self._neg_prompt_embeds
+        else:
+            latent_in = x.to(model_dtype)
+            timestep_in = timestep_tensor
+            prompt_list = self._prompt_embeds
 
         # Transformer expects list of (C, F, H, W).
         # If 4D: add frame dim → (B*2, C, 1, H, W), then unbind → (C, 1, H, W) each
@@ -203,16 +210,20 @@ class ZImageAdapter(ModelAdapter):
             prompt_list,
         )[0]
 
-        pos_out = model_out_list[:batch_size]
-        neg_out = model_out_list[batch_size:]
-        pred_cfg = torch.stack(
-            [p.float() + guidance_scale * (p.float() - n.float()) for p, n in zip(pos_out, neg_out)],
-            dim=0,
-        )  # (B, C, F, H, W)
-        pred_big = torch.stack(
-            [p.float() + cfg_big * (p.float() - n.float()) for p, n in zip(pos_out, neg_out)],
-            dim=0,
-        )
+        if do_cfg:
+            pos_out = model_out_list[:batch_size]
+            neg_out = model_out_list[batch_size:]
+            pred_cfg = torch.stack(
+                [p.float() + guidance_scale * (p.float() - n.float()) for p, n in zip(pos_out, neg_out)],
+                dim=0,
+            )  # (B, C, F, H, W)
+            pred_big = torch.stack(
+                [p.float() + cfg_big * (p.float() - n.float()) for p, n in zip(pos_out, neg_out)],
+                dim=0,
+            )
+        else:
+            pred_cfg = torch.stack([o.float() for o in model_out_list], dim=0)
+            pred_big = pred_cfg
 
         # If we added the frame dim, remove it so shapes match x
         if added_frame_dim:

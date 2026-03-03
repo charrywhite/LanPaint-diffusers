@@ -99,7 +99,9 @@ def blend_with_smooth_mask(
     )
 
     m = torch.nn.functional.interpolate(m_keep, size=(h, w), mode="nearest").squeeze(1)
+    # Dilate keep-mask slightly so original covers any seam at mask boundary
     m = torch.nn.functional.max_pool2d(m, kernel_size=overlap, stride=1, padding=overlap // 2)
+    # Smooth the dilated mask for gradual transition
     kern = gaussian_kernel_2d(overlap, device=m.device).view(1, 1, overlap, overlap)
     m = (
         torch.nn.functional.conv2d(m.unsqueeze(1), kern, padding=overlap // 2)

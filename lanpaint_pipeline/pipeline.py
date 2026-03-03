@@ -153,13 +153,17 @@ class LanPaintInpaintPipeline:
         timesteps, flow_ts = self.adapter.prepare_timesteps(num_inference_steps, device)
         num_steps = len(timesteps)
 
-        noise = torch.randn_like(y_latent)
+        noise = torch.randn(y_latent.shape, generator=generator, device=device, dtype=y_latent.dtype)
         latents = model_wrapper.noise_scaling(
             flow_ts[0:1].reshape(1, 1, 1).float(), noise, y_latent
         )
 
         if hasattr(self.adapter.scheduler, "set_begin_index"):
             self.adapter.scheduler.set_begin_index(0)
+
+        # Seed the global RNG so that LanPaint's internal randn_like /
+        # MultivariateNormal.sample() calls are deterministic.
+        torch.manual_seed(seed)
 
         with torch.no_grad():
             for i, (t, flow_t) in enumerate(
@@ -347,7 +351,7 @@ class LanPaintInpaintPipeline:
                 .unsqueeze(0)
                 .to(device)
             )
-            mask_keep = (mask_tensor > 0.01).float()
+            mask_keep = (mask_tensor > 0.5).float()
 
         img_tensor = self.adapter.image_processor.preprocess(
             orig_img, height=ih, width=iw, resize_mode="crop"
