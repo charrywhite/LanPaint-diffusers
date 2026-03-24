@@ -1,0 +1,21 @@
+[project]
+name = "lanpaint-pipeline"
+version = "0.1.0"
+description = "LanPaint: training-free inpainting pipeline for diffusion models"
+requires-python = ">=3.10"
+dependencies = [
+    "LanPaint @ git+https://github.com/scraed/LanPaint.git",
+    "torch",
+    "diffusers",
+    "numpy",
+    "Pillow",
+    "scipy",
+    "tqdm",
+]
+
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["lanpaint_pipeline*"]
