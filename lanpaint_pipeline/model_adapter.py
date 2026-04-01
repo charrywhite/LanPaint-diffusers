@@ -77,7 +77,9 @@ class ModelAdapter(ABC):
 
     @property
     def device(self) -> torch.device:
-        """Device of the transformer/UNet."""
+        """Execution device of the pipeline (compatible with CPU offload)."""
+        if hasattr(self.pipe, '_execution_device'):
+            return self.pipe._execution_device
         model = getattr(self.pipe, "transformer", None) or getattr(self.pipe, "unet", None)
         return model.device
 
