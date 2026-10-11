@@ -42,6 +42,29 @@ class LanPaintConfig:
     early_stop: int = 1
     cfg_big: float = 1.0
     blend_overlap: int = 9
+    # Semantic early-stop for the inner Langevin iterations (LanPaint's
+    # `lanpaint_semantic_stop`): stop iterating once the masked region is
+    # stable for `patience`+1 consecutive checks. 0.0 disables (default).
+    # Only useful when n_steps >= 3.
+    semantic_stop_threshold: float = 0.0
+    semantic_stop_patience: int = 1
+
+
+def semantic_stop_options(config: "LanPaintConfig") -> dict:
+    """Build the model-options dict for LanPaint's semantic early stop.
+
+    Returns an empty dict when disabled (threshold <= 0), so the sampler runs
+    exactly as before for every backend. Only when a positive threshold is set
+    does it emit the ``lanpaint_semantic_stop`` option the LanPaint sampler reads.
+    """
+    if config.semantic_stop_threshold > 0.0:
+        return {
+            "lanpaint_semantic_stop": {
+                "threshold": config.semantic_stop_threshold,
+                "patience": config.semantic_stop_patience,
+            }
+        }
+    return {}
 
 
 class LanPaintModelWrapper:
@@ -153,6 +176,8 @@ class LanPaintInpaintPipeline:
             IS_FLOW=True,
         )
 
+        model_options = semantic_stop_options(config)
+
         timesteps, flow_ts = self.adapter.prepare_timesteps(num_inference_steps, device)
         num_steps = len(timesteps)
 
@@ -183,7 +208,7 @@ class LanPaintInpaintPipeline:
                     sigma=torch.tensor([flow_t_val], device=device, dtype=torch.float32),
                     latent_mask=mask_keep_latent,
                     current_times=current_times,
-                    model_options={},
+                    model_options=model_options,
                     seed=seed,
                     n_steps=n_steps_override,
                 )

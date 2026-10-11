@@ -94,6 +94,10 @@ def parse_args():
     parser.add_argument("--lp-early-stop", type=int, default=1)
     parser.add_argument("--lp-cfg-big", type=float, default=1.0)
     parser.add_argument("--lp-blend-overlap", type=int, default=9)
+    parser.add_argument("--lp-stop-threshold", type=float, default=0.0,
+                        help="Semantic early-stop threshold for inner Langevin iterations (0 = off).")
+    parser.add_argument("--lp-stop-patience", type=int, default=1,
+                        help="Consecutive stable checks required before stopping inner iterations.")
 
     return parser.parse_args()
 
@@ -171,6 +175,8 @@ def main():
         early_stop=args.lp_early_stop,
         cfg_big=args.lp_cfg_big,
         blend_overlap=args.lp_blend_overlap,
+        semantic_stop_threshold=args.lp_stop_threshold,
+        semantic_stop_patience=args.lp_stop_patience,
     )
 
     # Build pipeline and run
