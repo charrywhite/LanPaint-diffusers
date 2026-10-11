@@ -291,7 +291,13 @@ class LanPaintInpaintPipeline:
         from diffusers.utils import load_image
 
         model_dtype = self.adapter.dtype
-        orig_img = load_image(image).convert("RGB") if isinstance(image, str) else image.convert("RGB")
+        if self.adapter.supports_alpha:
+            if outpaint_padding is not None:
+                raise ValueError("Outpainting is not supported for models that keep the alpha channel.")
+            # diffusers' load_image drops alpha; an RGB image becomes opaque RGBA.
+            orig_img = load_image_preserve_alpha(image).convert("RGBA")
+        else:
+            orig_img = load_image(image).convert("RGB") if isinstance(image, str) else image.convert("RGB")
         img_w, img_h = orig_img.size
         use_generated_outpaint_mask = outpaint_padding is not None
         multiple_of = self.adapter.vae_scale_factor * 2
@@ -375,8 +381,10 @@ class LanPaintInpaintPipeline:
             )
             mask_keep = (mask_tensor > 0.5).float()
 
+        # The image is already at the run size; resize_mode "crop" would also drop its alpha.
+        resize_mode = "default" if self.adapter.supports_alpha else "crop"
         img_tensor = self.adapter.image_processor.preprocess(
-            orig_img, height=ih, width=iw, resize_mode="crop"
+            orig_img, height=ih, width=iw, resize_mode=resize_mode
         ).to(device, model_dtype)
 
         return orig_img, mask_keep, img_tensor, ih, iw

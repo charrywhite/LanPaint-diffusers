@@ -24,6 +24,7 @@ def make_pipeline(vae_scale_factor=16):
         dtype=torch.float32,
         vae_scale_factor=vae_scale_factor,
         image_processor=VaeImageProcessor(vae_scale_factor=vae_scale_factor),
+        supports_alpha=False,
     )
     return pipe
 

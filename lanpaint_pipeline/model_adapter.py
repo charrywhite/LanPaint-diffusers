@@ -117,6 +117,17 @@ class ModelAdapter(ABC):
         """
         return False
 
+    @property
+    def supports_alpha(self) -> bool:
+        """
+        Whether the model encodes and decodes RGBA (e.g. Qwen-Image 2.1).
+
+        True: the pipeline keeps the image's alpha channel, hands the adapter a
+        4-channel tensor and composites all four channels. False: the image is
+        converted to RGB, as for every RGB model.
+        """
+        return False
+
     # ---- default implementations (flow-matching models) ----
 
     def noise_scaling(self, sigma, noise, latent_image):
