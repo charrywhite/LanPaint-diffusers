@@ -11,6 +11,7 @@ Training-free diffusion inpainting and outpainting with [LanPaint](https://githu
   - **Krea 2** (`krea2`)
   - **Stable Diffusion 3** (`sd3`)
   - **Qwen Image** (`qwen`) — thanks [@spartanz51](https://github.com/spartanz51)
+  - **Qwen Image 2.1** (`qwen-image-2.1`): RGBA edits, with optional reference images
 - **Extensible**: More LanPaint-supported models will be added over time; new backends are integrated via the adapter registry.
 
 ## Documentation
@@ -73,6 +74,18 @@ The script includes ready-to-run examples for:
 
 **Useful options**: `--guidance-scale`, `--num-steps`, `--seed`, `--output <path>`, `--model-id <hf-or-local-path>`, `--save-preprocess-dir <dir>`, `--local-files-only`
 
+**Qwen Image 2.1**: the image is `<image1>` in the prompt; `--reference-image <path-or-URL>`, repeatable, adds `<image2>`, `<image3>`, ... in order (for example a material to borrow from). The model works in RGBA: a transparent image keeps its transparency, the result is RGBA, and the edit may change the outline. Outpainting is not available for this model.
+
+```bash
+python run_lanpaint.py --model qwen-image-2.1 \
+    --prompt "The earcups of the headphones in <image1> are rebuilt with the material from <image2>" \
+    --image canvas.png --mask keep-mask.png --reference-image material.png \
+    --num-steps 20 --guidance-scale 4 --seed 777 \
+    --lp-n-steps 5 --lp-lambda 5 --lp-step-size 0.2 --lp-min-step-frac 1 --lp-early-stop 1 --lp-cfg-big 1
+```
+
+These are the sampler settings of LanPaint's ComfyUI workflow for this model; Diffusers keeps its own noise schedule. `--lp-min-step-frac` defaults to 0 unless explicitly set. The mask reaches the model's 16-pixel latent grid by nearest sampling, so a stroke thinner than one cell can disappear. In the final composite, kept pixels within `--lp-blend-overlap // 2` pixels of the canvas border can change.
+
 ### Mask convention (`--mask`)
 
 The pipeline supports both standalone mask images and RGBA masks:
@@ -84,7 +97,7 @@ The pipeline supports both standalone mask images and RGBA masks:
   - **alpha = 0** = region to be edited (inpaint area)
   - **alpha = 255** = region to keep (non-editable)
 
-The mask is resized with the image to the run size: `--height` and `--width` when both are given, otherwise the image size with its area capped at 1024² pixels; either way aligned down to the model's grid.
+The mask is always the separate `--mask` file, never the image's own alpha. It is resized with the image to the run size: `--height` and `--width` when both are given, otherwise the image size with its area capped at 1024² pixels; either way aligned down to the model's grid.
 ---
 
 ## Results Showcase
@@ -129,13 +142,14 @@ LanPaint-diffusers/
     ├── __init__.py
     ├── model_adapter.py   # Abstract adapter interface
     ├── pipeline.py        # LanPaintInpaintPipeline (orchestrator)
-    ├── registry.py        # Model registry (flux-klein, sd3, z-image, krea2, qwen)
+    ├── registry.py        # Model registry (flux-klein, sd3, z-image, krea2, qwen, qwen-image-2.1)
     ├── utils.py           # Blend, time helpers, image loading
     └── adapters/
         ├── __init__.py
         ├── flux_klein.py  # Flux2KleinAdapter
         ├── krea2.py       # Krea2Adapter
         ├── qwen.py        # QwenAdapter
+        ├── qwen21.py      # Qwen21Adapter
         ├── sd3.py         # SD3Adapter
         └── z_image.py     # ZImageAdapter
 ```

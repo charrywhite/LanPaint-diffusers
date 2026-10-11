@@ -35,9 +35,11 @@ import torch
 from lanpaint_pipeline import LanPaintConfig, LanPaintInpaintPipeline
 from lanpaint_pipeline.registry import (
     create_adapter,
+    get_adapter_class,
     get_model_spec,
     list_models,
 )
+from lanpaint_pipeline.utils import load_image_preserve_alpha
 
 
 def parse_args():
@@ -71,6 +73,9 @@ def parse_args():
                         help="Generate outpaint mask from pad spec, e.g. l200r200 or l200r200t200b200")
     parser.add_argument("--save-preprocess-dir", type=str, default=None,
                         help="Save preprocessed network inputs (image/mask) to this directory")
+    parser.add_argument("--reference-image", action="append", default=[], metavar="PATH_OR_URL",
+                        help="Extra image shown to the model after --image, as <image2>, <image3>, ... "
+                             "(repeatable; models with references, e.g. qwen-image-2.1)")
     parser.add_argument("--output", "-o", type=str, default=None,
                         help="Output path (default: results/<model>/lanpaint_output.png)")
 
@@ -141,12 +146,19 @@ def main():
         blend_overlap=args.lp_blend_overlap,
     )
 
+    # References are loaded and checked before the model is.
+    references = [load_image_preserve_alpha(source) for source in args.reference_image]
+    if references and not hasattr(get_adapter_class(args.model), "set_references"):
+        raise ValueError(f"--reference-image is not supported by model '{args.model}'.")
+
     # Unify global RNG state across Python/NumPy/PyTorch.
     set_global_seed(args.seed)
 
     # Resolve model-specific defaults
     spec = get_model_spec(args.model)
-    guidance_scale = args.guidance_scale or spec.default_params.get("guidance_scale", 5.0)
+    # An explicit 0 disables guidance; only a missing value takes the model default.
+    guidance_scale = (args.guidance_scale if args.guidance_scale is not None
+                      else spec.default_params.get("guidance_scale", 5.0))
     num_steps = args.num_steps or spec.default_params.get("num_inference_steps", 20)
 
     # Create adapter (loads model)
@@ -175,6 +187,9 @@ def main():
         model_id=model_id,
         **from_pretrained_kwargs,
     )
+
+    if references:
+        adapter.set_references(references)
 
     # Build pipeline and run
     lp_pipe = LanPaintInpaintPipeline(adapter, config=lp_config)
