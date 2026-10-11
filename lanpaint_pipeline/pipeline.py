@@ -27,6 +27,7 @@ from lanpaint_pipeline.utils import (
     blend_with_smooth_mask,
     load_image_preserve_alpha,
     make_current_times,
+    min_step_frac_effective_steps,
 )
 
 
@@ -42,6 +43,11 @@ class LanPaintConfig:
     early_stop: int = 1
     cfg_big: float = 1.0
     blend_overlap: int = 9
+    min_step_frac: float = 0.0
+
+    def __post_init__(self):
+        if not 0.0 <= self.min_step_frac <= 1.0:
+            raise ValueError("min_step_frac must be finite and between 0 and 1")
 
 
 class LanPaintModelWrapper:
@@ -142,6 +148,8 @@ class LanPaintInpaintPipeline:
             cfg_big=config.cfg_big,
         )
 
+        # LanPaint releases that predate MinStepFrac only get it when the ramp is on.
+        ramp = {"MinStepFrac": config.min_step_frac} if config.min_step_frac > 0 else {}
         lanpaint = LanPaint(
             Model=model_wrapper,
             NSteps=config.n_steps,
@@ -151,6 +159,7 @@ class LanPaintInpaintPipeline:
             StepSize=config.step_size,
             IS_FLUX=False,
             IS_FLOW=True,
+            **ramp,
         )
 
         timesteps, flow_ts = self.adapter.prepare_timesteps(num_inference_steps, device)
@@ -175,6 +184,10 @@ class LanPaintInpaintPipeline:
                 flow_t_val = flow_t.item()
                 current_times = make_current_times(flow_t_val, device)
                 n_steps_override = 0 if (num_steps - i <= config.early_stop) else None
+                if n_steps_override is None and config.min_step_frac > 0:
+                    n_steps_override = min_step_frac_effective_steps(
+                        config.n_steps, float(1.0 - current_times[1].item()), config.min_step_frac
+                    )
 
                 x0 = lanpaint(
                     x=latents,

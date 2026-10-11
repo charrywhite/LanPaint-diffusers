@@ -91,6 +91,8 @@ def parse_args():
     parser.add_argument("--lp-lambda", type=float, default=8.0)
     parser.add_argument("--lp-beta", type=float, default=1.0)
     parser.add_argument("--lp-step-size", type=float, default=0.2)
+    parser.add_argument("--lp-min-step-frac", type=float, default=0.0,
+                        help="Remaining-noise threshold for the inner-step ramp (0 disables it; 1 matches ComfyUI)")
     parser.add_argument("--lp-early-stop", type=int, default=1)
     parser.add_argument("--lp-cfg-big", type=float, default=1.0)
     parser.add_argument("--lp-blend-overlap", type=int, default=9)
@@ -126,6 +128,19 @@ def main():
         if args.mask is None:
             raise ValueError("Missing --mask. For outpaint, use --outpaint-pad instead.")
 
+    # Build LanPaint config
+    lp_config = LanPaintConfig(
+        n_steps=args.lp_n_steps,
+        friction=args.lp_friction,
+        chara_lambda=args.lp_lambda,
+        beta=args.lp_beta,
+        step_size=args.lp_step_size,
+        min_step_frac=args.lp_min_step_frac,
+        early_stop=args.lp_early_stop,
+        cfg_big=args.lp_cfg_big,
+        blend_overlap=args.lp_blend_overlap,
+    )
+
     # Unify global RNG state across Python/NumPy/PyTorch.
     set_global_seed(args.seed)
 
@@ -159,18 +174,6 @@ def main():
         device=args.device,
         model_id=model_id,
         **from_pretrained_kwargs,
-    )
-
-    # Build LanPaint config
-    lp_config = LanPaintConfig(
-        n_steps=args.lp_n_steps,
-        friction=args.lp_friction,
-        chara_lambda=args.lp_lambda,
-        beta=args.lp_beta,
-        step_size=args.lp_step_size,
-        early_stop=args.lp_early_stop,
-        cfg_big=args.lp_cfg_big,
-        blend_overlap=args.lp_blend_overlap,
     )
 
     # Build pipeline and run
