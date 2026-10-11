@@ -235,6 +235,26 @@ class LanPaintInpaintPipeline:
 
         return pads["l"], pads["r"], pads["t"], pads["b"]
 
+    @staticmethod
+    def _target_size(img_w, img_h, height, width, multiple_of, max_area=1024 * 1024):
+        """
+        Final (width, height) of an inpainting run: height and width when both are
+        given, otherwise the image size scaled down to at most max_area pixels; then
+        aligned down to multiple_of.
+        """
+        if height is None or width is None:
+            iw, ih = img_w, img_h
+            if iw * ih > max_area:
+                scale = (max_area / (iw * ih)) ** 0.5
+                iw, ih = int(iw * scale), int(ih * scale)
+        else:
+            iw, ih = width, height
+        iw = (iw // multiple_of) * multiple_of
+        ih = (ih // multiple_of) * multiple_of
+        if iw <= 0 or ih <= 0:
+            raise ValueError(f"Size ({iw}, {ih}) is empty once aligned to multiples of {multiple_of}.")
+        return iw, ih
+
     def _preprocess(
         self,
         image,
@@ -327,29 +347,15 @@ class LanPaintInpaintPipeline:
             else:
                 mask_src = mask_loaded.convert("L")
 
-            if height is None or width is None:
-                max_area = 1024 * 1024
-                iw, ih = img_w, img_h
-                if iw * ih > max_area:
-                    scale = (max_area / (iw * ih)) ** 0.5
-                    iw = int(iw * scale)
-                    ih = int(ih * scale)
-                    orig_img = orig_img.resize((iw, ih), Image.BICUBIC)
-                    mask_src = mask_src.resize((iw, ih), Image.Resampling.NEAREST)
-            else:
-                iw, ih = width, height
-                mask_src = mask_src.resize((iw, ih), Image.Resampling.NEAREST)
+            iw, ih = self._target_size(img_w, img_h, height, width, multiple_of)
 
-            iw = (iw // multiple_of) * multiple_of
-            ih = (ih // multiple_of) * multiple_of
+            # One mapping for both: the image and its mask are resized to the same
+            # final size, never cropped separately.
             if orig_img.size != (iw, ih):
                 orig_img = orig_img.resize((iw, ih), Image.BICUBIC)
-
-            left = (mask_src.width - iw) // 2
-            top = (mask_src.height - ih) // 2
-            mask_cropped = mask_src.crop((left, top, left + iw, top + ih))
+            mask_src = mask_src.resize((iw, ih), Image.Resampling.NEAREST)
             mask_tensor = (
-                torch.from_numpy(np.array(mask_cropped).astype(np.float32) / 255.0)
+                torch.from_numpy(np.array(mask_src).astype(np.float32) / 255.0)
                 .unsqueeze(0)
                 .unsqueeze(0)
                 .to(device)

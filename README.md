@@ -83,6 +83,8 @@ The pipeline supports both standalone mask images and RGBA masks:
 - **RGBA mask image** (mask stored in alpha channel):
   - **alpha = 0** = region to be edited (inpaint area)
   - **alpha = 255** = region to keep (non-editable)
+
+The mask is resized with the image to the run size: `--height` and `--width` when both are given, otherwise the image size with its area capped at 1024² pixels; either way aligned down to the model's grid.
 ---
 
 ## Results Showcase
