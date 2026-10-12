@@ -27,6 +27,7 @@ from lanpaint_pipeline.utils import (
     blend_with_smooth_mask,
     load_image_preserve_alpha,
     make_current_times,
+    min_step_frac_effective_steps,
 )
 
 
@@ -42,6 +43,11 @@ class LanPaintConfig:
     early_stop: int = 1
     cfg_big: float = 1.0
     blend_overlap: int = 9
+    min_step_frac: float = 0.0
+
+    def __post_init__(self):
+        if not 0.0 <= self.min_step_frac <= 1.0:
+            raise ValueError("min_step_frac must be finite and between 0 and 1")
 
 
 class LanPaintModelWrapper:
@@ -142,6 +148,8 @@ class LanPaintInpaintPipeline:
             cfg_big=config.cfg_big,
         )
 
+        # LanPaint releases that predate MinStepFrac only get it when the ramp is on.
+        ramp = {"MinStepFrac": config.min_step_frac} if config.min_step_frac > 0 else {}
         lanpaint = LanPaint(
             Model=model_wrapper,
             NSteps=config.n_steps,
@@ -151,6 +159,7 @@ class LanPaintInpaintPipeline:
             StepSize=config.step_size,
             IS_FLUX=False,
             IS_FLOW=True,
+            **ramp,
         )
 
         timesteps, flow_ts = self.adapter.prepare_timesteps(num_inference_steps, device)
@@ -175,6 +184,10 @@ class LanPaintInpaintPipeline:
                 flow_t_val = flow_t.item()
                 current_times = make_current_times(flow_t_val, device)
                 n_steps_override = 0 if (num_steps - i <= config.early_stop) else None
+                if n_steps_override is None and config.min_step_frac > 0:
+                    n_steps_override = min_step_frac_effective_steps(
+                        config.n_steps, float(1.0 - current_times[1].item()), config.min_step_frac
+                    )
 
                 x0 = lanpaint(
                     x=latents,
@@ -235,6 +248,26 @@ class LanPaintInpaintPipeline:
 
         return pads["l"], pads["r"], pads["t"], pads["b"]
 
+    @staticmethod
+    def _target_size(img_w, img_h, height, width, multiple_of, max_area=1024 * 1024):
+        """
+        Final (width, height) of an inpainting run: height and width when both are
+        given, otherwise the image size scaled down to at most max_area pixels; then
+        aligned down to multiple_of.
+        """
+        if height is None or width is None:
+            iw, ih = img_w, img_h
+            if iw * ih > max_area:
+                scale = (max_area / (iw * ih)) ** 0.5
+                iw, ih = int(iw * scale), int(ih * scale)
+        else:
+            iw, ih = width, height
+        iw = (iw // multiple_of) * multiple_of
+        ih = (ih // multiple_of) * multiple_of
+        if iw <= 0 or ih <= 0:
+            raise ValueError(f"Size ({iw}, {ih}) is empty once aligned to multiples of {multiple_of}.")
+        return iw, ih
+
     def _preprocess(
         self,
         image,
@@ -258,7 +291,13 @@ class LanPaintInpaintPipeline:
         from diffusers.utils import load_image
 
         model_dtype = self.adapter.dtype
-        orig_img = load_image(image).convert("RGB") if isinstance(image, str) else image.convert("RGB")
+        if self.adapter.supports_alpha:
+            if outpaint_padding is not None:
+                raise ValueError("Outpainting is not supported for models that keep the alpha channel.")
+            # diffusers' load_image drops alpha; an RGB image becomes opaque RGBA.
+            orig_img = load_image_preserve_alpha(image).convert("RGBA")
+        else:
+            orig_img = load_image(image).convert("RGB") if isinstance(image, str) else image.convert("RGB")
         img_w, img_h = orig_img.size
         use_generated_outpaint_mask = outpaint_padding is not None
         multiple_of = self.adapter.vae_scale_factor * 2
@@ -327,37 +366,25 @@ class LanPaintInpaintPipeline:
             else:
                 mask_src = mask_loaded.convert("L")
 
-            if height is None or width is None:
-                max_area = 1024 * 1024
-                iw, ih = img_w, img_h
-                if iw * ih > max_area:
-                    scale = (max_area / (iw * ih)) ** 0.5
-                    iw = int(iw * scale)
-                    ih = int(ih * scale)
-                    orig_img = orig_img.resize((iw, ih), Image.BICUBIC)
-                    mask_src = mask_src.resize((iw, ih), Image.Resampling.NEAREST)
-            else:
-                iw, ih = width, height
-                mask_src = mask_src.resize((iw, ih), Image.Resampling.NEAREST)
+            iw, ih = self._target_size(img_w, img_h, height, width, multiple_of)
 
-            iw = (iw // multiple_of) * multiple_of
-            ih = (ih // multiple_of) * multiple_of
+            # One mapping for both: the image and its mask are resized to the same
+            # final size, never cropped separately.
             if orig_img.size != (iw, ih):
                 orig_img = orig_img.resize((iw, ih), Image.BICUBIC)
-
-            left = (mask_src.width - iw) // 2
-            top = (mask_src.height - ih) // 2
-            mask_cropped = mask_src.crop((left, top, left + iw, top + ih))
+            mask_src = mask_src.resize((iw, ih), Image.Resampling.NEAREST)
             mask_tensor = (
-                torch.from_numpy(np.array(mask_cropped).astype(np.float32) / 255.0)
+                torch.from_numpy(np.array(mask_src).astype(np.float32) / 255.0)
                 .unsqueeze(0)
                 .unsqueeze(0)
                 .to(device)
             )
             mask_keep = (mask_tensor > 0.5).float()
 
+        # The image is already at the run size; resize_mode "crop" would also drop its alpha.
+        resize_mode = "default" if self.adapter.supports_alpha else "crop"
         img_tensor = self.adapter.image_processor.preprocess(
-            orig_img, height=ih, width=iw, resize_mode="crop"
+            orig_img, height=ih, width=iw, resize_mode=resize_mode
         ).to(device, model_dtype)
 
         return orig_img, mask_keep, img_tensor, ih, iw

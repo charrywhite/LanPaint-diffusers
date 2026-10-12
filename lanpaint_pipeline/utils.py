@@ -38,6 +38,20 @@ def make_current_times(flow_t_val: float, device: torch.device):
     )
 
 
+def min_step_frac_effective_steps(n_steps: int, remaining_noise: float, min_step_frac: float) -> int:
+    """LanPaint tail ramp, using the VP noise fraction (1 - alpha_bar).
+
+    Below min_step_frac, the core pins its step size and this count ramps
+    down instead. Python's round matches the upstream sampler, including ties.
+    The default zero leaves the number of inner steps unchanged.
+    """
+    if not 0.0 <= min_step_frac <= 1.0:
+        raise ValueError("min_step_frac must be finite and between 0 and 1")
+    if min_step_frac == 0.0 or remaining_noise >= min_step_frac or n_steps <= 0:
+        return n_steps
+    return max(0, round(n_steps * remaining_noise / min_step_frac))
+
+
 def gaussian_kernel_2d(kernel_size: int, device=None) -> torch.Tensor:
     """Create a normalized 2D Gaussian kernel (matches LanPaint's reference)."""
     sigma = (kernel_size - 1) / 4.0
