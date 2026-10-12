@@ -102,7 +102,7 @@ The mask is always the separate `--mask` file, never the image's own alpha. It i
 
 ## Results Showcase
 
-Below are visual examples for `flux-klein`, `z-image`, `krea2`, and `qwen`.
+Below are visual examples for `flux-klein`, `z-image`, `krea2`, `qwen`, and `qwen-image-2.1`.
 
 ### Flux2 Klein (Example 24)
 
@@ -127,6 +127,36 @@ Below are visual examples for `flux-klein`, `z-image`, `krea2`, and `qwen`.
 | Original | Masked | Diffusers Version | ComfyUI Version |
 |:--------:|:------:|:-----------------:|:---------------:|
 | ![Original Qwen](https://raw.githubusercontent.com/scraed/LanPaint/master/examples/Example_14/Original_No_Mask.png) | ![Masked Qwen](https://raw.githubusercontent.com/scraed/LanPaint/master/examples/Example_14/Masked_Load_Me_in_Loader.png) | ![Inpainted Qwen Diffusers](results/qwen/lanpaint_output.png) | ![Inpainted Qwen ComfyUI](https://raw.githubusercontent.com/scraed/LanPaint/master/examples/Example_14/QwenEdit_2509_InPainted_Drag_Me_to_ComfyUI.png) |
+
+### Qwen Image 2.1 (Example 32)
+
+Masked RGBA editing with a material reference, based on
+[LanPaint Example 32](https://github.com/scraed/LanPaint/tree/2d7912f9a5efe5ece8de334c7ca18317b8288c39/examples/Example_32).
+Settings: 20 steps, CFG 4, seed 777.
+
+| Source | Keep mask (white = keep) | Material reference |
+|:------:|:------------------------:|:------------------:|
+| ![Source](https://raw.githubusercontent.com/scraed/LanPaint/2d7912f9a5efe5ece8de334c7ca18317b8288c39/examples/Example_32/Image_Load_Me_in_Loader.png) | ![Keep mask](results/qwen-image-2.1/keep-mask.png) | ![Material](https://raw.githubusercontent.com/scraed/LanPaint/2d7912f9a5efe5ece8de334c7ca18317b8288c39/examples/Example_32/Material_Load_Me_in_Loader.png) |
+
+| Diffusers | ComfyUI |
+|:---------:|:-------:|
+| ![Diffusers result](results/qwen-image-2.1/lanpaint_output.png) | ![ComfyUI result](https://raw.githubusercontent.com/scraed/LanPaint/2d7912f9a5efe5ece8de334c7ca18317b8288c39/examples/Example_32/InPainted_Drag_Me_to_ComfyUI.png) |
+
+Run this example:
+
+```bash
+python run_lanpaint.py --model qwen-image-2.1 --device cuda \
+    --prompt "$(cat results/qwen-image-2.1/prompt.txt)" \
+    --image https://raw.githubusercontent.com/scraed/LanPaint/2d7912f9a5efe5ece8de334c7ca18317b8288c39/examples/Example_32/Image_Load_Me_in_Loader.png \
+    --mask results/qwen-image-2.1/keep-mask.png \
+    --reference-image https://raw.githubusercontent.com/scraed/LanPaint/2d7912f9a5efe5ece8de334c7ca18317b8288c39/examples/Example_32/Material_Load_Me_in_Loader.png \
+    --num-steps 20 --guidance-scale 4 --seed 777 \
+    --lp-n-steps 5 --lp-lambda 5 --lp-step-size 0.2 \
+    --lp-min-step-frac 1 --lp-early-stop 1 --lp-cfg-big 1 \
+    --lp-blend-overlap 9 --output results/qwen-image-2.1/example.png
+```
+
+The checkpoint uses the [Qwen Research License](https://huggingface.co/Qwen/Qwen-Image-2.1/blob/d26bb61231c349cf6b7896fa83353113880e1ba3/LICENSE), which requires a separate license for commercial use.
 
 ---
 
